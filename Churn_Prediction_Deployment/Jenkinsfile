@@ -1,0 +1,28 @@
+
+pipeline {
+    agent {
+        label 'dind-agent'
+    }
+    environment {
+        NS = 'asia.gcr.io/jp-k8s-internal'
+        VERSION = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+    }
+    stages {
+        stage('Docker Build') {
+            steps {
+                script {
+                    sh 'docker build -t beckn-etl:$(git rev-parse --short HEAD) -f Dockerfile --build-arg SOURCE_COMMIT=$(git rev-parse HEAD) .'
+                }
+            }
+        }
+        stage('Docker AWS Beckn Push') {
+            steps {
+                script {
+                    sh 'aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 147728078333.dkr.ecr.ap-south-1.amazonaws.com'
+                    sh 'docker tag beckn-etl:$(git rev-parse --short HEAD) 147728078333.dkr.ecr.ap-south-1.amazonaws.com/beckn-etl:$(git rev-parse --short HEAD)'
+                    sh 'docker push 147728078333.dkr.ecr.ap-south-1.amazonaws.com/beckn-etl:$(git rev-parse --short HEAD)'
+                }
+            }
+        }
+    }
+}
